@@ -1,9 +1,10 @@
 # __main__.py
 
+import asyncio
 import sys
 from pathlib import Path
 
-from scchecker.checker import site_is_online
+from scchecker.checker import site_is_online, site_is_online_async
 from scchecker.cli import display_check_result, read_user_cli_args
 
 
@@ -38,6 +39,19 @@ def _synchronous_check(urls):
         display_check_result(result, url, error)
 
 
+async def _asynchronous_check(urls):
+    async def _check(url):
+        error = ""
+        try:
+            result = await site_is_online_async(url)
+        except Exception as e:
+            result = False
+            error = str(e)
+        display_check_result(result, url, error)
+
+    await asyncio.gather(*(_check(url) for url in urls))
+
+
 def main():
     """Run SC Checker."""
     user_args = read_user_cli_args()
@@ -45,7 +59,10 @@ def main():
     if not urls:
         print("Error: no URLs to check", file=sys.stderr)
         sys.exit(1)
-    _synchronous_check(urls)
+    if user_args.asynchronous:
+        asyncio.run(_asynchronous_check(urls))
+    else:
+        _synchronous_check(urls)
 
 
 if __name__ == "__main__":
